@@ -134,20 +134,57 @@
     });
   });
 
-  $("signup").addEventListener("click", () => action(async () => {
-    const { data, error } = await client.auth.signUp({
-      email: $("email").value.trim(),
-      password: $("password").value
-    });
-    if (error) throw error;
+  
+$("signup").addEventListener("click", () => action(async () => {
+  const email = $("email").value.trim();
+  const password = $("password").value;
 
-    if (data.session) {
-      await refreshSession();
-      say("Account created.");
-    } else {
-      say("Check your email to confirm your account, then log in.");
-    }
-  }));
+  // Validate before sending any signup request.
+  if (!email) {
+    throw new Error("Please enter your email address.");
+  }
+
+  if (password.length < 8) {
+    throw new Error(
+      "Password must contain at least 8 characters."
+    );
+  }
+
+  if (!$("auth-form").checkValidity()) {
+    $("auth-form").reportValidity();
+    throw new Error("Please enter a valid email address.");
+  }
+
+  const { data, error } = await client.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) throw error;
+
+  // Never leave the user automatically signed in after signup.
+  if (data.session) {
+    const { error: logoutError } =
+      await client.auth.signOut();
+
+    if (logoutError) throw logoutError;
+  }
+
+  // Return to the existing login form.
+  $("password").value = "";
+  $("password").setAttribute("autocomplete", "current-password");
+  $("login").textContent = "Log in";
+  $("email").value = email;
+
+  await refreshSession();
+
+  say(
+    data.session
+      ? "Account created successfully. Please log in."
+      : "Signup submitted. Check your email for confirmation if required, then log in."
+  );
+}));
+
 
   $("logout").addEventListener("click", () => action(async () => {
     const { error } = await client.auth.signOut();
